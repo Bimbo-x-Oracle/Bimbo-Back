@@ -18,8 +18,19 @@ DEMANDA_CSV_PATH = './data/demanda.csv'
 ---------------------------------------------
 """
 
-# Lista de nombres de choferes
+# Lista de nombres de choferes y URLs para fotos
 nombres_conductores = ["Rubí", "Raúl", "Rafael", "Sebastián", "Gustavo", "Gus", "Daniel", "Pablo", "Daniela"]
+conductores_fotos = [
+    "https://example.com/foto_rubi.png",
+    "https://example.com/foto_raul.png",
+    "https://example.com/foto_rafael.png",
+    "https://example.com/foto_sebastian.png",
+    "https://example.com/foto_gustavo.png",
+    "https://example.com/foto_gus.png",
+    "https://example.com/foto_daniel.png",
+    "https://example.com/foto_pablo.png",
+    "https://example.com/foto_daniela.png"
+]
 
 # Función para generar un lugar de estacionamiento aleatorio
 def generar_lugar_estacionamiento():
@@ -38,6 +49,7 @@ def create_camiones(seed):
         contenido = [{"IdProducto": random.randint(1, 56), "Cantidad": random.randint(40, 2000)} for _ in range(5)]  # 5 productos por camión
         placa = f"{random.randint(100, 999)}-XYZ-{random.randint(100, 999)}"
         chofer = random.choice(nombres_conductores)
+        foto_chofer = conductores_fotos[nombres_conductores.index(chofer)]
         num_remolques = random.randint(1, 2)
         hora_llegada = f"{random.randint(0, 23)}:{random.randint(0, 59):02d}"
         descargado = 'False'  # Estado inicial
@@ -48,17 +60,18 @@ def create_camiones(seed):
             json.dumps(contenido), 
             placa, 
             chofer, 
+            foto_chofer,  # Añadimos la URL de la foto
             num_remolques, 
             hora_llegada, 
-            descargado,  # Nuevo campo
-            lugar_estacionamiento  # Nuevo campo
+            descargado, 
+            lugar_estacionamiento
         ])
 
     # Guardar en CSV con la nueva estructura
     with open(CAMIONES_CSV_PATH, mode='w', newline='') as file:
         writer = csv.writer(file)
         # Columnas con la nueva estructura
-        writer.writerow(["CamionID", "Contenido", "Placa", "Chofer", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
+        writer.writerow(["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
         writer.writerows(camiones)
 
     return jsonify({"message": "Camiones creados correctamente en fábrica."}), 201
@@ -108,7 +121,7 @@ def register_camion_in_patio(camion_id):
                 return jsonify({"message": f"Camion {camion_id} ya registrado en el patio. Sin cambios."}), 409
             
         # Escribir el camión en el patio
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
+        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
         writer.writerow(camion_data)
 
     return jsonify({"message": f"Camion {camion_id} registrado en el patio."}), 201
@@ -122,11 +135,11 @@ def list_camiones_in_patio():
     with open(PATIO_CSV_PATH, mode='r') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            if row['Descargado'] == 'False':
+            if row['Descargado'] == "False":
                 camiones.append({
                     "CamionID": row['CamionID'], 
                     "HoraLlegada": row['HoraLlegada'],
-                    "LugarEstacionamiento": row['LugarEstacionamiento']
+                    "LugarEstacionamiento": row['LugarEstacionamiento'],
                 })
 
     return jsonify(camiones), 200
@@ -142,7 +155,8 @@ def get_camion_content_in_patio(camion_id):
                 return jsonify({
                     "CamionID": camion_id,
                     "Contenido": contenido,
-                    "LugarEstacionamiento": row['LugarEstacionamiento']
+                    "LugarEstacionamiento": row['LugarEstacionamiento'],
+                    "ConductorFoto": row['ConductorFoto']  # Añadimos la foto del chofer
                 }), 200
     
     return jsonify({"message": "Camion no encontrado en patio"}), 404
@@ -164,20 +178,20 @@ def update_camion_in_patio(camion_id):
 
     # Sobrescribir el CSV del patio con los cambios
     with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
+        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
         writer.writeheader()
         writer.writerows(camiones)
 
     if updated:
-        return jsonify({"message": "Camion actualizado correctamente en patio."}), 200
+        return jsonify({"message": f"Camion {camion_id} marcado como descargado."}), 200
     else:
-        return jsonify({"message": "Camion no encontrado en patio"}), 404
+        return jsonify({"message": "Camion no encontrado en patio."}), 404
 
 # /patio: Wipe de camiones en el patio
 @app.route('/patio/wipe', methods=['DELETE'])
 def wipe_patio():
     with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
+        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
         writer.writeheader()
 
     return jsonify({"message": "Patio limpiado correctamente."}), 200
@@ -193,14 +207,15 @@ def fill_patio():
             camiones.append(row)
 
     with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
+        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
         writer.writeheader()
         writer.writerows(camiones)
 
     return jsonify({"message": "Patio llenado con camiones de fábrica."}), 201
 
-## DEMANDA
 
+
+### DEMANDA
 # Create: Generar demanda y guardar en un CSV
 @app.route('/demanda/create/<int:seed>', methods=['POST'])
 def create_demanda(seed):
@@ -329,8 +344,3 @@ if __name__ == '__main__':
 # Crear las bases de datos en lugar de los CSVs
 # NO generar recomendaciones según aleatorios, adjuntar el modelo de recomendación.
 # Agregar procesos automáticos para guardar históricos en la BD correspondiente
-
-
-# Punto de entrada
-if __name__ == '__main__':
-    app.run(debug=True)
