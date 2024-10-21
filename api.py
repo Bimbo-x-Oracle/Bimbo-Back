@@ -329,8 +329,18 @@ def modelo_recomendacion():
     # Añadir índice de orden (1-10)
     for idx, camion in enumerate(camiones_recomendados, start=1):
         camion['OrdenDescarga'] = idx
+    
+    # Solo retornar los atributos deseados
+    camiones_filtrados = [
+        {
+            'IdCamion': camion['CamionID'],  
+            'Placa': camion['Placa'],        
+            'OrdenDescarga': camion['OrdenDescarga'] 
+        }
+        for camion in camiones_recomendados
+    ]
 
-    return jsonify(camiones_recomendados), 200
+    return jsonify(camiones_filtrados), 200
 
 # Punto de entrada
 if __name__ == '__main__':
