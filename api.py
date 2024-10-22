@@ -219,13 +219,17 @@ def fill_patio():
 # Create: Generar demanda y guardar en un CSV
 @app.route('/demanda/create/<int:seed>', methods=['POST'])
 def create_demanda(seed):
-    random.seed(seed)
+    random.seed(seed) #Revisar lo del seed****
     
     demanda = []
-    for i in range(20):  # Generaremos 20 productos
+    productos_usados = set()  # Set para almacenar los productos ya seleccionados
+
+    while len(productos_usados) < 20:  
         id_producto = random.randint(1, 56)
-        cantidad = random.randint(40, 2000)
-        demanda.append([id_producto, cantidad])
+        if id_producto not in productos_usados:
+            cantidad = random.randint(40, 2000)
+            demanda.append([id_producto, cantidad])
+            productos_usados.add(id_producto)  
 
     # Guardar en CSV
     with open(DEMANDA_CSV_PATH, mode='w', newline='') as file:
@@ -325,8 +329,18 @@ def modelo_recomendacion():
     # Añadir índice de orden (1-10)
     for idx, camion in enumerate(camiones_recomendados, start=1):
         camion['OrdenDescarga'] = idx
+    
+    # Solo retornar los atributos deseados
+    camiones_filtrados = [
+        {
+            'IdCamion': camion['CamionID'],  
+            'Placa': camion['Placa'],        
+            'OrdenDescarga': camion['OrdenDescarga'] 
+        }
+        for camion in camiones_recomendados
+    ]
 
-    return jsonify(camiones_recomendados), 200
+    return jsonify(camiones_filtrados), 200
 
 # Punto de entrada
 if __name__ == '__main__':
