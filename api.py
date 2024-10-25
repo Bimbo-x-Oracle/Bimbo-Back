@@ -1,24 +1,55 @@
-import csv
 import random
 import json
+import sqlite3
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-""" 
----------------------------------------------
-Rutas de almacenamiento para los archivos CSV
----------------------------------------------
-Cambiar por Base de Datos eventualmente
-"""
-CAMIONES_CSV_PATH = './data/camiones.csv'
-PATIO_CSV_PATH = './data/patio.csv'
-DEMANDA_CSV_PATH = './data/demanda.csv'
-"""
----------------------------------------------
-"""
+# SQLite database setup
+DB_PATH = './data/database.db'
 
-# Lista de nombres de choferes y URLs para fotos
+# Initialize database and create tables
+def init_db():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        # Camiones table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS camiones (
+                CamionID TEXT PRIMARY KEY,
+                Contenido TEXT,
+                Placa TEXT,
+                Chofer TEXT,
+                ConductorFoto TEXT,
+                NumeroRemolques INTEGER,
+                HoraLlegada TEXT,
+                Descargado TEXT,
+                LugarEstacionamiento TEXT
+            )
+        ''')
+        # Patio table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS patio (
+                CamionID TEXT PRIMARY KEY,
+                Contenido TEXT,
+                Placa TEXT,
+                Chofer TEXT,
+                ConductorFoto TEXT,
+                NumeroRemolques INTEGER,
+                HoraLlegada TEXT,
+                Descargado TEXT,
+                LugarEstacionamiento TEXT
+            )
+        ''')
+        # Demanda table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS demanda (
+                IdProducto INTEGER PRIMARY KEY,
+                Cantidad INTEGER
+            )
+        ''')
+        conn.commit()
+
+# List of names of drivers and URLs for photos
 nombres_conductores = ["Rubí", "Raúl", "Rafael", "Sebastián", "Gustavo", "Gus", "Daniel", "Pablo", "Daniela"]
 conductores_fotos = [
     "https://example.com/foto_rubi.png",
@@ -32,329 +63,302 @@ conductores_fotos = [
     "https://example.com/foto_daniela.png"
 ]
 
-# Función para generar un lugar de estacionamiento aleatorio
+# Function to generate a random parking spot
 def generar_lugar_estacionamiento():
-    digito = random.randint(1, 9)  # Número de 1 a 9
-    letra = chr(random.randint(65, 90))  # Letra de A a Z (ASCII)
+    digito = random.randint(1, 9)  # Number from 1 to 9
+    letra = chr(random.randint(65, 90))  # Letter from A to Z (ASCII)
     return f"{digito}{letra}"
 
-# /camiones: Crea camiones simulando origen de fábrica y los guarda en un CSV
+# /camiones: Create trucks simulating factory origin and save them in the database
 @app.route('/camiones/create/<int:seed>', methods=['POST'])
 def create_camiones(seed):
     random.seed(seed)
     
     camiones = []
-    for i in range(30):  # Crearemos 30 camiones como ejemplo
-        camion_id = hex(random.randint(0x100000, 0xFFFFFF))[2:].upper()  # ID en formato Hex
-        contenido = [{"IdProducto": random.randint(1, 56), "Cantidad": random.randint(40, 2000)} for _ in range(5)]  # 5 productos por camión
+    for i in range(30):  # Creating 30 trucks as an example
+        camion_id = hex(random.randint(0x100000, 0xFFFFFF))[2:].upper()  # ID in Hex format
+        contenido = [{"IdProducto": random.randint(1, 56), "Cantidad": random.randint(40, 2000)} for _ in range(5)]  # 5 products per truck
         placa = f"{random.randint(100, 999)}-XYZ-{random.randint(100, 999)}"
         chofer = random.choice(nombres_conductores)
         foto_chofer = conductores_fotos[nombres_conductores.index(chofer)]
         num_remolques = random.randint(1, 2)
         hora_llegada = f"{random.randint(0, 23)}:{random.randint(0, 59):02d}"
-        descargado = 'False'  # Estado inicial
-        lugar_estacionamiento = generar_lugar_estacionamiento()  # Generamos el lugar de estacionamiento
+        descargado = 'False'
+        lugar_estacionamiento = generar_lugar_estacionamiento()
 
-        camiones.append([
-            camion_id, 
-            json.dumps(contenido), 
-            placa, 
-            chofer, 
-            foto_chofer,  # Añadimos la URL de la foto
-            num_remolques, 
-            hora_llegada, 
-            descargado, 
-            lugar_estacionamiento
-        ])
+        camiones.append((camion_id, json.dumps(contenido), placa, chofer, foto_chofer, num_remolques, hora_llegada, descargado, lugar_estacionamiento))
 
-    # Guardar en CSV con la nueva estructura
-    with open(CAMIONES_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        # Columnas con la nueva estructura
-        writer.writerow(["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writerows(camiones)
+    # Save to SQLite database
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.executemany('''
+                INSERT INTO camiones 
+                (CamionID, Contenido, Placa, Chofer, ConductorFoto, NumeroRemolques, HoraLlegada, Descargado, LugarEstacionamiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', camiones)
+            conn.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"message": "Error: Algunos camiones ya existen en la fábrica."}), 409
 
     return jsonify({"message": "Camiones creados correctamente en fábrica."}), 201
 
-
-# /camiones: Obtener el contenido de un camión por ID (fábrica)
+# /camiones: Get the content of a truck by ID (factory)
 @app.route('/camiones/<camion_id>', methods=['GET'])
 def get_camion_content(camion_id):
-    with open(CAMIONES_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                contenido = json.loads(row['Contenido'])
-                return jsonify({
-                    "CamionID": camion_id,
-                    "Contenido": contenido
-                }), 200
-    
-    return jsonify({"message": "Camion no encontrado en fábrica"}), 404
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM camiones WHERE CamionID = ?", (camion_id,))
+        row = cursor.fetchone()
 
-# /patio: Registrar camiones en el patio, entrada por seguridad
+        if row:
+            contenido = json.loads(row[1])
+            return jsonify({"CamionID": camion_id, "Contenido": contenido}), 200
+        else:
+            return jsonify({"message": "Camion no encontrado en fábrica"}), 404
+
+# /camiones: Delete trucks from factory as reset
+@app.route('/camiones/wipe', methods=['DELETE'])
+def wipe_camiones():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM camiones")
+        conn.commit()
+
+    return jsonify({"message": "Todos los camiones de la fábrica han sido eliminados."}), 200
+
+# /patio: Register trucks in the yard, entry through security
 @app.route('/patio/register/<camion_id>', methods=['POST'])
 def register_camion_in_patio(camion_id):
     camion_data = None
 
-    # Primero leemos el archivo de camiones para obtener los datos
-    with open(CAMIONES_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                camion_data = row
-                break
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM camiones WHERE CamionID = ?", (camion_id,))
+        camion_data = cursor.fetchone()
 
-    if not camion_data:
-        return jsonify({"message": "Camión no encontrado en fábrica"}), 404
+        if not camion_data:
+            return jsonify({"message": "Camión no encontrado en fábrica"}), 404
 
-    # Registrar camión en el patio
-    camion_data['Descargado'] = 'False'  # Estado inicial del camión en el patio
-    camion_data['LugarEstacionamiento'] = generar_lugar_estacionamiento()
+        # Register truck in the yard
+        camion_data = list(camion_data)
+        camion_data[7] = 'False'
+        camion_data[8] = generar_lugar_estacionamiento()
 
-    # Guardar en el CSV del patio
-    with open(PATIO_CSV_PATH, mode='a', newline='') as file:
-        # Verificar si el camión ya está en el patio
-        reader = csv.DictReader(open(PATIO_CSV_PATH, mode='r'))  # Asegúrate de abrir en modo lectura
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                return jsonify({"message": f"Camion {camion_id} ya registrado en el patio. Sin cambios."}), 409
-            
-        # Escribir el camión en el patio
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writerow(camion_data)
+        cursor.execute("SELECT * FROM patio WHERE CamionID = ?", (camion_id,))
+        if cursor.fetchone():
+            return jsonify({"message": f"Camion {camion_id} ya registrado en el patio. Sin cambios."}), 409
+
+        cursor.execute('''
+            INSERT INTO patio 
+            (CamionID, Contenido, Placa, Chofer, ConductorFoto, NumeroRemolques, HoraLlegada, Descargado, LugarEstacionamiento) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', camion_data)
+        conn.commit()
 
     return jsonify({"message": f"Camion {camion_id} registrado en el patio."}), 201
 
-
-# /patio: Listar camiones en el patio que no han sido descargados
+# /patio: List trucks in the yard that have not been unloaded
 @app.route('/patio/list', methods=['GET'])
 def list_camiones_in_patio():
     camiones = []
     
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['Descargado'] == "False":
-                camiones.append({
-                    "CamionID": row['CamionID'], 
-                    "HoraLlegada": row['HoraLlegada'],
-                    "LugarEstacionamiento": row['LugarEstacionamiento'],
-                })
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM patio WHERE Descargado = 'False'")
+        rows = cursor.fetchall()
+
+        for row in rows:
+            camiones.append({
+                "CamionID": row[0],
+                "HoraLlegada": row[6],
+                "LugarEstacionamiento": row[8],
+            })
 
     return jsonify(camiones), 200
 
-# /patio: Obtener el contenido de un camión por ID (patio)
+# /patio: Get the content of a truck by ID (yard)
 @app.route('/patio/<camion_id>', methods=['GET'])
 def get_camion_content_in_patio(camion_id):
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                contenido = json.loads(row['Contenido'])
-                return jsonify({
-                    "CamionID": camion_id,
-                    "Contenido": contenido,
-                    "LugarEstacionamiento": row['LugarEstacionamiento'],
-                    "ConductorFoto": row['ConductorFoto']  # Añadimos la foto del chofer
-                }), 200
-    
-    return jsonify({"message": "Camion no encontrado en patio"}), 404
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM patio WHERE CamionID = ?", (camion_id,))
+        row = cursor.fetchone()
 
-# /patio: Actualizar el estado de descarga de un camión
+        if row:
+            contenido = json.loads(row[1])
+            return jsonify({
+                "CamionID": camion_id,
+                "Contenido": contenido,
+                "LugarEstacionamiento": row[8],
+                "ConductorFoto": row[4]
+            }), 200
+        else:
+            return jsonify({"message": "Camion no encontrado en patio"}), 404
+
+# /patio: Update the unloading status of a truck
 @app.route('/patio/update/<camion_id>', methods=['PUT'])
 def update_camion_in_patio(camion_id):
-    updated = False
-    camiones = []
-    
-    # Leer y actualizar el archivo CSV del patio
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                row['Descargado'] = 'True'
-                updated = True
-            camiones.append(row)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE patio SET Descargado = 'True' WHERE CamionID = ?", (camion_id,))
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({"message": f"Camion {camion_id} marcado como descargado."}), 200
+        else:
+            return jsonify({"message": "Camion no encontrado en patio."}), 404
 
-    # Sobrescribir el CSV del patio con los cambios
-    with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writeheader()
-        writer.writerows(camiones)
-
-    if updated:
-        return jsonify({"message": f"Camion {camion_id} marcado como descargado."}), 200
-    else:
-        return jsonify({"message": "Camion no encontrado en patio."}), 404
-
-# /patio: Wipe de camiones en el patio
+# /patio: Wipe all trucks in the yard
 @app.route('/patio/wipe', methods=['DELETE'])
 def wipe_patio():
-    with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writeheader()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM patio")
+        conn.commit()
 
     return jsonify({"message": "Patio limpiado correctamente."}), 200
 
-# /patio: Llenar el patio con camiones de la fábrica (simulación)
+# /patio/fill: Move trucks from factory to the yard
 @app.route('/patio/fill', methods=['POST'])
 def fill_patio():
-    camiones = []
-    
-    with open(CAMIONES_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            camiones.append(row)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM camiones")
+        camiones = cursor.fetchall()
 
-    with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writeheader()
-        writer.writerows(camiones)
+        if not camiones:
+            return jsonify({"message": "No hay camiones en la fábrica para trasladar al patio."}), 404
 
-    return jsonify({"message": "Patio llenado con camiones de fábrica."}), 201
+        for camion in camiones:
+            camion_data = list(camion)
+            camion_data[7] = 'False'  # Set Descargado to 'False'
+            camion_data[8] = generar_lugar_estacionamiento()  # Generate a new parking spot
 
+            cursor.execute('''
+                INSERT INTO patio 
+                (CamionID, Contenido, Placa, Chofer, ConductorFoto, NumeroRemolques, HoraLlegada, Descargado, LugarEstacionamiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', camion_data)
 
+        conn.commit()
 
-### DEMANDA
-# Create: Generar demanda y guardar en un CSV
+    return jsonify({"message": "Todos los camiones de la fábrica han sido trasladados al patio."}), 200
+
+# /demanda: Create demand for products
 @app.route('/demanda/create/<int:seed>', methods=['POST'])
 def create_demanda(seed):
-    random.seed(seed) #Revisar lo del seed****
+    random.seed(seed)
     
-    demanda = []
-    productos_usados = set()  # Set para almacenar los productos ya seleccionados
+    # Randomly select 23 unique product IDs from 1 to 56
+    selected_ids = random.sample(range(1, 57), 23)  # Select 23 unique IDs
+    demanda = [(id_producto, random.randint(1, 100)) for id_producto in selected_ids]  # Generate random quantities
 
-    while len(productos_usados) < 20:  
-        id_producto = random.randint(1, 56)
-        if id_producto not in productos_usados:
-            cantidad = random.randint(40, 2000)
-            demanda.append([id_producto, cantidad])
-            productos_usados.add(id_producto)  
+    updated_count = 0  # Count of updated products
+    new_count = 0      # Count of new products inserted
 
-    # Guardar en CSV
-    with open(DEMANDA_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["IdProducto", "Cantidad"])
-        writer.writerows(demanda)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        # Process each product in the demanda list
+        for id_producto, cantidad in demanda:
+            cursor.execute("SELECT COUNT(*) FROM demanda WHERE IdProducto = ?", (id_producto,))
+            exists = cursor.fetchone()[0]
 
-    return jsonify({"message": "Demanda generada correctamente."}), 201
+            if exists > 0:
+                # If product exists, update its quantity
+                cursor.execute("UPDATE demanda SET Cantidad = ? WHERE IdProducto = ?", (cantidad, id_producto))
+                updated_count += 1
+            else:
+                # If product does not exist, insert it
+                cursor.execute("INSERT INTO demanda (IdProducto, Cantidad) VALUES (?, ?)", (id_producto, cantidad))
+                new_count += 1
 
-# Read: Listar el contenido del CSV de demanda
-@app.route('/demanda/list', methods=['GET'])
-def list_demanda():
+        conn.commit()
+
+    # Create a message based on the number of updates and new inserts
+    messages = []
+    if new_count > 0:
+        messages.append(f"{new_count} productos se han añadido.")
+    if updated_count > 0:
+        messages.append(f"{updated_count} productos se han actualizado.")
+
+    if messages:
+        return jsonify({"message": "Demanda creada correctamente. " + " ".join(messages)}), 201
+    else:
+        return jsonify({"message": "No se realizaron cambios en la demanda."}), 200
+
+# /demanda: Get demand for all products
+@app.route('/demanda', methods=['GET'])
+def get_demanda():
     demanda = []
     
-    with open(DEMANDA_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            demanda.append({"IdProducto": row['IdProducto'], "Cantidad": row['Cantidad']})
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM demanda")
+        rows = cursor.fetchall()
+
+        for row in rows:
+            demanda.append({"IdProducto": row[0], "Cantidad": row[1]})
 
     return jsonify(demanda), 200
 
-# Read: Obtener una lista aleatoria de demanda (sin CSV)
+# /demanda: Generate and return a random demand of 10 items (not related to DB)
 @app.route('/demanda/random', methods=['GET'])
-def random_demanda():
+def get_random_demanda():
     demanda = []
-    
-    for i in range(20):  # 20 productos aleatorios
+
+    # Generate a random demand of 10 items
+    for i in range(10):
         id_producto = random.randint(1, 56)
-        cantidad = random.randint(40, 2000)
+        cantidad = random.randint(1, 100)
         demanda.append({"IdProducto": id_producto, "Cantidad": cantidad})
 
     return jsonify(demanda), 200
 
-# Update: Actualizar demanda tras la descarga de productos de un camión
+# /demanda: Update demand from given truck products (subtraction)
 @app.route('/demanda/update/<camion_id>', methods=['PUT'])
 def update_demanda(camion_id):
-    camiones = []
-    demanda_actualizada = []
-    productos_camion = []
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT Contenido FROM patio WHERE CamionID = ?", (camion_id, ))
+        row = cursor.fetchone()
 
-    # Cargar el contenido del camión en patio desde el CSV
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                productos_camion = json.loads(row['Contenido'])  # Obtener el contenido del camión
+        if row:
+            contenido = json.loads(row[0])
+            for producto in contenido:
+                id_producto = producto["IdProducto"]
+                cantidad = producto["Cantidad"]
+                # Update demand from the contents of the truck. Capped minimum at 0
+                cursor.execute("UPDATE demanda SET Cantidad = CASE WHEN Cantidad - ? < 0 THEN 0 ELSE Cantidad - ? END WHERE IdProducto = ?", (cantidad, cantidad, id_producto))
+                conn.commit()
+            return jsonify({"message": f"Demanda de camion {camion_id} actualizada correctamente."}), 200
+        else:
+            return jsonify({"message": "Camion no encontrado en patio."}), 404
 
-    if not productos_camion:
-        return jsonify({"message": "Camion no encontrado en patio o no tiene productos"}), 404
+# /demanda: Clear all demand data
+@app.route('/demanda/wipe', methods=['DELETE'])
+def wipe_demanda():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM demanda")
+        conn.commit()
 
-    # Actualizar la demanda en función de los productos descargados
-    with open(DEMANDA_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            id_producto = int(row['IdProducto'])
-            cantidad_demanda = int(row['Cantidad'])
-            
-            # Buscar si el producto está en el camión
-            for producto in productos_camion:
-                if producto['IdProducto'] == id_producto:
-                    cantidad_camion = producto['Cantidad']
-                    # Restar la cantidad del producto en el camión a la demanda
-                    nueva_cantidad = max(0, cantidad_demanda - cantidad_camion)
-                    demanda_actualizada.append({"IdProducto": id_producto, "Cantidad": nueva_cantidad})
-                    break
-            else:
-                # Si no hay match con el camión, dejar el producto tal como está en la demanda
-                demanda_actualizada.append({"IdProducto": id_producto, "Cantidad": cantidad_demanda})
+    return jsonify({"message": "Demanda limpiada correctamente."}), 200
 
-    # Guardar la demanda actualizada en el CSV
-    with open(DEMANDA_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["IdProducto", "Cantidad"])
-        writer.writeheader()
-        writer.writerows(demanda_actualizada)
+# /modelo: Get model recommendation
+# Tiempo de llegada (Tiempo que lleva esperando)
+# Número de pallets
+# Cantidad por producto (Producto:Cantidad)
 
-    return jsonify({"message": "Demanda actualizada correctamente."}), 200
+# ProductoID
+# Importancia 0-1
+# Cantidad
 
-# Read: Simular una lista de 10 camiones al azar como recomendación de orden de descarga
-@app.route('/modelo/recomendacion', methods=['GET'])
-def modelo_recomendacion():
-    camiones = []
-    camiones_recomendados = []
+# Por bahía qué camiones
 
-    # Leer los camiones disponibles desde el CSV
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['Descargado'] == 'False':
-                camiones.append(row)
 
-    # Si hay menos de 10 camiones disponibles, usar los que haya
-    num_camiones = min(10, len(camiones))
+# Initialize the database
+init_db()
 
-    # Seleccionar 10 camiones al azar
-    camiones_recomendados = random.sample(camiones, num_camiones)
-
-    # Añadir índice de orden (1-10)
-    for idx, camion in enumerate(camiones_recomendados, start=1):
-        camion['OrdenDescarga'] = idx
-    
-    # Solo retornar los atributos deseados
-    camiones_filtrados = [
-        {
-            'IdCamion': camion['CamionID'],  
-            'Placa': camion['Placa'],        
-            'OrdenDescarga': camion['OrdenDescarga'] 
-        }
-        for camion in camiones_recomendados
-    ]
-
-    return jsonify(camiones_filtrados), 200
-
-# Punto de entrada
 if __name__ == '__main__':
     app.run(debug=True)
-
-# Antes del juebebes 17 de octubre  
-# Base de datos de perfiles de empleados para aplicación
-
-# Antes del martes 22 de octubre
-# Información de BD y cuál vamos a usar
-
-# ActionItems Faltantes para nuestro 100%:
-# Preguntar cómo se maneja inventario para la resta de la demanda (si es necesario, crear BD de inventario)
-# Cómo se manejan las demandas y cómo son (Global, Minis), crear las demandas correctamente y no aleatoriamente
-# Crear las bases de datos en lugar de los CSVs
-# NO generar recomendaciones según aleatorios, adjuntar el modelo de recomendación.
-# Agregar procesos automáticos para guardar históricos en la BD correspondiente
