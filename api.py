@@ -8,46 +8,11 @@ app = Flask(__name__)
 # SQLite database setup
 DB_PATH = './data/database.db'
 
-# Initialize database and create tables
-def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        # Camiones table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS camiones (
-                CamionID TEXT PRIMARY KEY,
-                Contenido TEXT,
-                Placa TEXT,
-                Chofer TEXT,
-                ConductorFoto TEXT,
-                NumeroRemolques INTEGER,
-                HoraLlegada TEXT,
-                Descargado TEXT,
-                LugarEstacionamiento TEXT
-            )
-        ''')
-        # Patio table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS patio (
-                CamionID TEXT PRIMARY KEY,
-                Contenido TEXT,
-                Placa TEXT,
-                Chofer TEXT,
-                ConductorFoto TEXT,
-                NumeroRemolques INTEGER,
-                HoraLlegada TEXT,
-                Descargado TEXT,
-                LugarEstacionamiento TEXT
-            )
-        ''')
-        # Demanda table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS demanda (
-                IdProducto INTEGER PRIMARY KEY,
-                Cantidad INTEGER
-            )
-        ''')
-        conn.commit()
+# Import the init_db function
+from init_db import init_db
+
+# Initialize the database
+init_db()
 
 # List of names of drivers and URLs for photos
 nombres_conductores = ["Rubí", "Raúl", "Rafael", "Sebastián", "Gustavo", "Gus", "Daniel", "Pablo", "Daniela"]
@@ -346,19 +311,9 @@ def wipe_demanda():
     return jsonify({"message": "Demanda limpiada correctamente."}), 200
 
 # /modelo: Get model recommendation
-# Tiempo de llegada (Tiempo que lleva esperando)
-# Número de pallets
-# Cantidad por producto (Producto:Cantidad)
-
-# ProductoID
-# Importancia 0-1
-# Cantidad
-
-# Por bahía qué camiones
-
-
-# Initialize the database
-init_db()
+@app.route('/modelo', methods=['GET'])
+def get_modelo():
+    return jsonify({"message": "Modelo de recomendación no implementado."}), 501
 
 if __name__ == '__main__':
     app.run(debug=True)
