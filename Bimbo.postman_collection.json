@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "c68a0d82-2c47-426d-bbff-0f7fa5dc91f1",
+		"_postman_id": "85c6c6a9-16bf-439c-bc05-1c0644e33bf0",
 		"name": "Bimbo",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "26957919"
@@ -51,6 +51,29 @@
 							"path": [
 								"camiones",
 								"3265B1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DeleteWipeCamionesFabrica",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/camiones/wipe",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"camiones",
+								"wipe"
 							]
 						}
 					},
@@ -236,7 +259,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://127.0.0.1:5000/demanda/list",
+							"raw": "http://127.0.0.1:5000/demanda",
 							"protocol": "http",
 							"host": [
 								"127",
@@ -246,8 +269,7 @@
 							],
 							"port": "5000",
 							"path": [
-								"demanda",
-								"list"
+								"demanda"
 							]
 						}
 					},
@@ -295,6 +317,29 @@
 								"demanda",
 								"update",
 								"3265B1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DeleteWipeDemanda",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/demanda/wipe",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"demanda",
+								"wipe"
 							]
 						}
 					},
