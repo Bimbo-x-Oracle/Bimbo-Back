@@ -2,6 +2,7 @@ import csv
 import random
 import json
 from flask import Flask, jsonify, request
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
@@ -32,6 +33,48 @@ conductores_fotos = [
     "https://example.com/foto_daniela.png"
 ]
 
+# Registro de usuario
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    usuario = data.get('usuario')
+    password = data.get('password')
+    nombre_completo = data.get('nombre_completo')
+    rol = data.get('rol')
+    foto = data.get('foto')
+
+    hashed_password = generate_password_hash(password)
+
+    # Guardar en la base de datos
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO usuarios (Usuario, Password, NombreCompleto, Rol, Foto) 
+                VALUES (?, ?, ?, ?, ?)
+            ''', (usuario, hashed_password, nombre_completo, rol, foto))
+            conn.commit()
+            return jsonify({'message': 'Usuario registrado exitosamente'}), 201
+        except sqlite3.IntegrityError:
+            return jsonify({'message': 'Error: El usuario ya existe'}), 409
+
+# Login de usuario
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    usuario = data.get('usuario')
+    password = data.get('password')
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT Password FROM usuarios WHERE Usuario = ?', (usuario,))
+        row = cursor.fetchone()
+
+        if row and check_password_hash(row[0], password):
+            return jsonify({'message': 'Login exitoso'}), 200
+        else:
+            return jsonify({'message': 'Credenciales incorrectas'}), 401
+
 # Función para generar un lugar de estacionamiento aleatorio
 def generar_lugar_estacionamiento():
     digito = random.randint(1, 9)  # Número de 1 a 9
@@ -42,7 +85,7 @@ def generar_lugar_estacionamiento():
 @app.route('/camiones/create/<int:seed>', methods=['POST'])
 def create_camiones(seed):
     random.seed(seed)
-    
+    #Modificar sección de crear camiones  
     camiones = []
     for i in range(30):  # Crearemos 30 camiones como ejemplo
         camion_id = hex(random.randint(0x100000, 0xFFFFFF))[2:].upper()  # ID en formato Hex
@@ -52,27 +95,23 @@ def create_camiones(seed):
         foto_chofer = conductores_fotos[nombres_conductores.index(chofer)]
         num_remolques = random.randint(1, 2)
         hora_llegada = f"{random.randint(0, 23)}:{random.randint(0, 59):02d}"
-        descargado = 'False'  # Estado inicial
-        lugar_estacionamiento = generar_lugar_estacionamiento()  # Generamos el lugar de estacionamiento
+        estado = ''
+        lugar_estacionamiento = generar_lugar_estacionamiento()
 
-        camiones.append([
-            camion_id, 
-            json.dumps(contenido), 
-            placa, 
-            chofer, 
-            foto_chofer,  # Añadimos la URL de la foto
-            num_remolques, 
-            hora_llegada, 
-            descargado, 
-            lugar_estacionamiento
-        ])
+        camiones.append((camion_id, json.dumps(contenido), placa, chofer, foto_chofer, num_remolques, hora_llegada, estado, lugar_estacionamiento))
 
-    # Guardar en CSV con la nueva estructura
-    with open(CAMIONES_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        # Columnas con la nueva estructura
-        writer.writerow(["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writerows(camiones)
+    # Save to SQLite database
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.executemany('''
+                INSERT INTO camiones 
+                (CamionID, Contenido, Placa, Chofer, ConductorFoto, NumeroRemolques, HoraLlegada, Estado, LugarEstacionamiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', camiones)
+            conn.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"message": "Error: Algunos camiones ya existen en la fábrica."}), 409
 
     return jsonify({"message": "Camiones creados correctamente en fábrica."}), 201
 
@@ -121,7 +160,7 @@ def register_camion_in_patio(camion_id):
                 return jsonify({"message": f"Camion {camion_id} ya registrado en el patio. Sin cambios."}), 409
             
         # Escribir el camión en el patio
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
+        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Estado", "LugarEstacionamiento"])
         writer.writerow(camion_data)
 
     return jsonify({"message": f"Camion {camion_id} registrado en el patio."}), 201
@@ -132,15 +171,17 @@ def register_camion_in_patio(camion_id):
 def list_camiones_in_patio():
     camiones = []
     
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['Descargado'] == "False":
-                camiones.append({
-                    "CamionID": row['CamionID'], 
-                    "HoraLlegada": row['HoraLlegada'],
-                    "LugarEstacionamiento": row['LugarEstacionamiento'],
-                })
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM patio WHERE Estado = 'False'")
+        rows = cursor.fetchall()
+
+        for row in rows:
+            camiones.append({
+                "CamionID": row[0],
+                "HoraLlegada": row[6],
+                "LugarEstacionamiento": row[8],
+            })
 
     return jsonify(camiones), 200
 
@@ -164,28 +205,14 @@ def get_camion_content_in_patio(camion_id):
 # /patio: Actualizar el estado de descarga de un camión
 @app.route('/patio/update/<camion_id>', methods=['PUT'])
 def update_camion_in_patio(camion_id):
-    updated = False
-    camiones = []
-    
-    # Leer y actualizar el archivo CSV del patio
-    with open(PATIO_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['CamionID'] == camion_id:
-                row['Descargado'] = 'True'
-                updated = True
-            camiones.append(row)
-
-    # Sobrescribir el CSV del patio con los cambios
-    with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writeheader()
-        writer.writerows(camiones)
-
-    if updated:
-        return jsonify({"message": f"Camion {camion_id} marcado como descargado."}), 200
-    else:
-        return jsonify({"message": "Camion no encontrado en patio."}), 404
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE patio SET Estado = 'True' WHERE CamionID = ?", (camion_id,))
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({"message": f"Camion {camion_id} marcado como estado."}), 200
+        else:
+            return jsonify({"message": "Camion no encontrado en patio."}), 404
 
 # /patio: Wipe de camiones en el patio
 @app.route('/patio/wipe', methods=['DELETE'])
@@ -199,17 +226,26 @@ def wipe_patio():
 # /patio: Llenar el patio con camiones de la fábrica (simulación)
 @app.route('/patio/fill', methods=['POST'])
 def fill_patio():
-    camiones = []
-    
-    with open(CAMIONES_CSV_PATH, mode='r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            camiones.append(row)
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM camiones")
+        camiones = cursor.fetchall()
 
-    with open(PATIO_CSV_PATH, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["CamionID", "Contenido", "Placa", "Chofer", "ConductorFoto", "NumeroRemolques", "HoraLlegada", "Descargado", "LugarEstacionamiento"])
-        writer.writeheader()
-        writer.writerows(camiones)
+        if not camiones:
+            return jsonify({"message": "No hay camiones en la fábrica para trasladar al patio."}), 404
+
+        for camion in camiones:
+            camion_data = list(camion)
+            camion_data[7] = 'False'  # Set Estado to 'False'
+            camion_data[8] = generar_lugar_estacionamiento()  # Generate a new parking spot
+
+            cursor.execute('''
+                INSERT INTO patio 
+                (CamionID, Contenido, Placa, Chofer, ConductorFoto, NumeroRemolques, HoraLlegada, Estado, LugarEstacionamiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', camion_data)
+
+        conn.commit()
 
     return jsonify({"message": "Patio llenado con camiones de fábrica."}), 201
 
