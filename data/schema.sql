@@ -1,27 +1,13 @@
-import sqlite3
-
-# SQLite database setup
-DB_PATH = './data/database.db'
-
-# Initialize database and create tables
-def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        # Users table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS usuarios (
+CREATE TABLE usuarios (
                 UsuarioID INTEGER PRIMARY KEY AUTOINCREMENT,
                 Usuario TEXT UNIQUE,
                 Password TEXT,
                 NombreCompleto TEXT,
                 Rol TEXT, 
                 Foto TEXT
-            )
-        ''')
-        
-        # Camiones table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS camiones (
+            );
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE TABLE camiones (
                 CamionID TEXT PRIMARY KEY,
                 Contenido TEXT,
                 Placa TEXT,
@@ -31,27 +17,8 @@ def init_db():
                 Estado TEXT,
                 LugarEstacionamiento TEXT,
                 FOREIGN KEY (ConductorID) REFERENCES usuarios (UsuarioID)
-            )
-        ''')
-
-        # Patio table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS patio (
-                CamionID TEXT PRIMARY KEY,
-                Contenido TEXT,
-                Placa TEXT,
-                Chofer TEXT,
-                ConductorFoto TEXT,
-                NumeroRemolques INTEGER,
-                HoraLlegada TEXT,
-                Estado TEXT,
-                LugarEstacionamiento TEXT
-            )
-        ''')
-
-         # Demanda Table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS demanda (
+            );
+CREATE TABLE demanda (
                 Orden INTEGER PRIMARY KEY,
                 "800" INTEGER, "2530" INTEGER, "6011" INTEGER, "6444" INTEGER, "31090" INTEGER,
                 "31811" INTEGER, "35549" INTEGER, "38447" INTEGER, "38582" INTEGER, "38585" INTEGER,
@@ -83,12 +50,8 @@ def init_db():
                 "515007" INTEGER, "515069" INTEGER, "515101" INTEGER, "515108" INTEGER, "515120" INTEGER,
                 "515122" INTEGER, "515123" INTEGER,
                 PrecioVentaTotal REAL
-            )
-        ''')
-        
-        # CamionesContenido Table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS camionesContenido (
+            );
+CREATE TABLE camionesContenido (
                 Carga TEXT,
                 Pallet INTEGER,
                 FechaCierre TEXT,
@@ -104,11 +67,4 @@ def init_db():
                 CB2 INTEGER,
                 CT1 INTEGER,
                 TARIMA INTEGER
-            )
-        ''')
-
-        conn.commit()
-
-if __name__ == '__main__':
-    init_db()
-    print("Database initialized successfully.")
+            );
