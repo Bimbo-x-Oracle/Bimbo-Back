@@ -63,39 +63,63 @@ def generar_lugar_estacionamiento():
     return f"{digito}{letra}"
 
 # /camiones: Obtener el contenido de un camión por ID (Join tabla camiones y camionesContenido)
-"""
-TODO: REGRESAR CONTENIDO, TODAS LAS COLUMNAS
-"""
+
+# TODO: REGRESAR CONTENIDO, TODAS LAS COLUMNAS
+
 @app.route('/camiones/<camion_id>', methods=['GET'])
-def get_camion(camion_id):
+def get_camionPrueba(camion_id):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT c.CamionID, c.Placa, c.ConductorID, c.NumeroRemolques, c.HoraLlegada, c.Estado, 
-                   cc.Carga, cc.Pallet, cc.FechaCierre
+            SELECT c.CamionID, c.Placa, c.ConductorID, c.NumeroRemolques, c.HoraLlegada, c.Estado, cc.*
             FROM camiones c
             JOIN camionesContenido cc ON c.CamionID = cc.Carga
             WHERE c.CamionID = ?
         ''', (camion_id,))
-        truck = cursor.fetchone()
-        if truck:
+        
+         # Obtiene todos los registros
+        trucks = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
+        
+        if trucks:
+            # Asigna los datos básicos del camión
             truck_data = {
-                'CamionID': truck[0],
-                'Placa': truck[1],
-                'ConductorID': truck[2],
-                'NumeroRemolques': truck[3],
-                'HoraLlegada': truck[4],
-                'Estado': truck[5],
-                'Carga': truck[6],
-                'Pallet': truck[7],
-                'FechaCierre': truck[8]
+                'CamionID': trucks[0][0],
+                'Placa': trucks[0][1],
+                'ConductorID': trucks[0][2],
+                'NumeroRemolques': trucks[0][3],
+                'HoraLlegada': trucks[0][4],
+                'Estado': trucks[0][5],
+                'Contenido': []
             }
+
+            # Itera sobre cada registro en camionesContenido
+            for truck in trucks:
+                contenido = {columns[i]: truck[i] for i in range(6, len(columns)) if truck[i] != 0}
+                truck_data['Contenido'].append(contenido)
+                
             return jsonify(truck_data), 200
         else:
             return jsonify({'message': 'Camión no encontrado'}), 404
 
 # /camiones: Insertar nuevo set de camiones como csv (insertdb function) DO NOT DO THIS FOR NOW
 #@app.route('/camiones/insert', methods=['DELETE'])
+
+@app.route('/camionesGet/<camion_id>', methods=['GET'])
+def get_all_camiones_contenido(camion_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Ejecutar el query para obtener todo el contenido de camionesContenido
+        cursor.execute('SELECT * FROM camionesContenido WHERE Carga = ?', (camion_id,))
+        
+        # Obtener todas las filas del resultado
+        contenido_camion = cursor.fetchall()
+        
+        # Convertir cada fila a diccionario y devolver como JSON
+        return jsonify([dict(row) for row in contenido_camion]), 200
+
 """
 TODO: Crear
 """

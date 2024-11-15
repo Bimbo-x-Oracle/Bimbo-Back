@@ -120,16 +120,31 @@ def process_and_insert_demand(file_path):
 
     print("Demand data inserted successfully into demanda table.")
 
+
+# Lista de opciones para generar placas
+opciones_placas = ['ABC', 'XYZ', 'LMN', 'JKL', 'MNO', 'PQR', 'STU', 'VWX', 'YZA', 'BCD', 'PEF']
+
+def get_conductores():
+    # Función para obtener solo nombres con rol de Conductor de la base de datos
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT Nombre FROM usuarios WHERE Rol = 'Conductor'")
+        conductores = [row[0] for row in cursor.fetchall()]
+    return conductores
+
 def process_and_insert_trucks():
     """
     # CamionID: should be an item from pending_camiones_cleanformat.csv CARGA column
     # Placa: randomly generate license plate
-    # ConductorID: count+1
+    # ConductorID: count+1 
     # NumeroRemolques: random1-2
     # HoraLlegada: leave at null for now, value changes in app
     # Estado: leave at "EnFabrica", value changes in app
     # LugarEstacionamiento: leave at null for now, value changes in app
     """
+    # Obtener la lista de conductores
+    conductores = get_conductores()
+
     # Insert data into the database for camiones table
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -141,8 +156,8 @@ def process_and_insert_trucks():
         # Generate trucks data
         for camion in camiones_data:
             camion_id = camion[0]
-            placa = f"{random.choice(['ABC', 'XYZ', 'LMN'])}-{random.randint(100, 999)}"  # Random license plate
-            conductor_id = random.randint(1, len(nombres))  # Random conductor ID (assuming users are in a list)
+            placa = f"{random.choice(opciones_placas)}-{random.randint(100, 999)}"  # Random license plate
+            conductor_id = random.randint(1, len(conductores))  # Random conductor ID (assuming users are in a list)
             numero_remolques = random.randint(1, 2)  # Random number of trailers (1 or 2)
             hora_llegada = None  # Leaving it null for now
             estado = "EnFabrica"
@@ -175,7 +190,7 @@ def process_and_insert_users():
             usuario = f"user{user_id}"  # Generating username
             password = "password123"  # Default password
             nombre_completo = nombres[user_id - 1]  # Pick name from list
-            rol = random.choice(["Conductor", "Supervisor", "Administrador"])  # Random role
+            rol = random.choice(["Conductor", "Supervisor", "Descargador", "Seguridad"])  # Random role
             foto = fotos[user_id - 1]  # Pick photo from the list
             
             # Insert into usuarios table
