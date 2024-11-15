@@ -151,7 +151,7 @@ def algoritmo_genetico_experiment(camiones_df, demanda_df, num_bahias=9, num_gen
             for ind, (fit, tiempo_total) in zip(poblacion, fitness):
                 if fit > mejor_fitness:
                     mejor_fitness = fit
-                    mejor_individuo = ind
+                    mejor_individuo = [[camiones[camion_id]['nombre'] for camion_id in bahia] for bahia in ind]
                     mejor_tiempo_total = tiempo_total
 
         return mejor_individuo, mejor_tiempo_total
