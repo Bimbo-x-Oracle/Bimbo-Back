@@ -120,6 +120,24 @@ def process_and_insert_demand(file_path):
 
     print("Demand data inserted successfully into demanda table.")
 
+def insert_productos(file_path):
+    # # Load CSV
+    df = pd.read_csv(file_path)
+
+    # Rename columns to match with table
+    df = df.rename(columns={
+        'Articulo': 'ProductoID',
+        'Descripcion de articulo': 'Nombre',
+        'Precio de venta': 'Precio'
+    })
+
+    # Connect to BD
+    with sqlite3.connect(DB_PATH) as conn:
+        # Insert data
+        df.to_sql('productos', conn, if_exists='replace', index=False)
+    
+    print("Product data inserted successfully into product table")
+
 
 # Lista de opciones para generar placas
 opciones_placas = ['ABC', 'XYZ', 'LMN', 'JKL', 'MNO', 'PQR', 'STU', 'VWX', 'YZA', 'BCD', 'PEF']
@@ -128,7 +146,7 @@ def get_conductores():
     # Función para obtener solo nombres con rol de Conductor de la base de datos
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT Nombre FROM usuarios WHERE Rol = 'Conductor'")
+        cursor.execute("SELECT NombreCompleto FROM usuarios WHERE Rol = 'Conductor'")
         conductores = [row[0] for row in cursor.fetchall()]
     return conductores
 
@@ -208,6 +226,7 @@ def main():
     input_dir = "data/original_bimbo_data"
     process_and_insert_pending(os.path.join(input_dir, "Pendientes.csv"))
     process_and_insert_demand(os.path.join(input_dir, "Ordenes.csv"))
+    insert_productos(os.path.join(input_dir, "SoloProductos.csv"))
     process_and_insert_users()
     process_and_insert_trucks()
 

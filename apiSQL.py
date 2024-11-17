@@ -65,11 +65,13 @@ def generar_lugar_estacionamiento():
 # /camiones: Obtener el contenido de un camión por ID (Join tabla camiones y camionesContenido)
 
 # TODO: REGRESAR CONTENIDO, TODAS LAS COLUMNAS
-
+  
 @app.route('/camiones/<camion_id>', methods=['GET'])
-def get_camionPrueba(camion_id):
+def get_camion(camion_id):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
+        
+        # Primera consulta: Obtener información del camión y camionesContenido
         cursor.execute('''
             SELECT c.CamionID, c.Placa, c.ConductorID, c.NumeroRemolques, c.HoraLlegada, c.Estado, cc.*
             FROM camiones c
@@ -77,30 +79,61 @@ def get_camionPrueba(camion_id):
             WHERE c.CamionID = ?
         ''', (camion_id,))
         
-         # Obtiene todos los registros
         trucks = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
         
-        if trucks:
-            # Asigna los datos básicos del camión
-            truck_data = {
-                'CamionID': trucks[0][0],
-                'Placa': trucks[0][1],
-                'ConductorID': trucks[0][2],
-                'NumeroRemolques': trucks[0][3],
-                'HoraLlegada': trucks[0][4],
-                'Estado': trucks[0][5],
-                'Contenido': []
-            }
-
-            # Itera sobre cada registro en camionesContenido
-            for truck in trucks:
-                contenido = {columns[i]: truck[i] for i in range(6, len(columns)) if truck[i] != 0}
-                truck_data['Contenido'].append(contenido)
-                
-            return jsonify(truck_data), 200
-        else:
+        if not trucks:
             return jsonify({'message': 'Camión no encontrado'}), 404
+        
+        # Construir datos básicos del camión
+        truck_data = {
+            'CamionID': trucks[0][0],
+            'Placa': trucks[0][1],
+            'ConductorID': trucks[0][2],
+            'NumeroRemolques': trucks[0][3],
+            'HoraLlegada': trucks[0][4],
+            'Estado': trucks[0][5],
+            'Contenido': []
+        }
+
+        # Obtener los IDs de los productos que tienen valores no nulos
+        product_ids = []
+        for truck in trucks:
+            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
+                if truck[i] is not None and column.isdigit():  # Verifica si es un ID de producto
+                    product_ids.append(column)
+        
+        # Eliminar duplicados de IDs
+        product_ids = list(set(product_ids))
+        
+        # Segunda consulta: Obtener nombres de productos
+        if product_ids:
+            placeholders = ', '.join('?' for _ in product_ids)
+            cursor.execute(f'''
+                SELECT ProductoID, Nombre
+                FROM productos
+                WHERE ProductoID IN ({placeholders})
+            ''', product_ids)
+            
+            product_names = {str(row[0]): row[1] for row in cursor.fetchall()}
+        else:
+            product_names = {}
+
+        # Procesar contenido
+        for truck in trucks:
+            contenido = {}
+            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
+                if truck[i] is not 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
+                    nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)
+                    contenido[nombre_producto] = truck[i]
+            contenido.update({
+                'Carga': truck[6],
+                'FechaCierre': truck[7],
+                'Pallet': truck[8]
+            })
+            truck_data['Contenido'].append(contenido)
+        
+        return jsonify(truck_data), 200
 
 # /camiones: Insertar nuevo set de camiones como csv (insertdb function) DO NOT DO THIS FOR NOW
 #@app.route('/camiones/insert', methods=['DELETE'])

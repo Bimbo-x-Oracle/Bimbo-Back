@@ -90,6 +90,14 @@ def init_db():
                 TARIMA INTEGER
             )
         ''')
+        # Productos Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS productos (
+                ProductoID INTEGER PRIMARY KEY,
+                Nombre TEXT,
+                Precio INTEGER
+            )
+        ''')
 
         conn.commit()
 
