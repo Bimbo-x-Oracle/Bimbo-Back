@@ -1,0 +1,286 @@
+{
+	"info": {
+		"_postman_id": "89be4b85-8892-4253-a94c-4cc253bed0c6",
+		"name": "Bimbo Copy",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "26957919"
+	},
+	"item": [
+		{
+			"name": "Usuario",
+			"item": [
+				{
+					"name": "CreateUsuario",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"usuario\": \"gustavote\",\r\n    \"password\": \"password123\",\r\n    \"nombre_completo\": \"Gustavo Tellez\",\r\n    \"rol\": \"Administrador\",\r\n    \"foto\": \"https://example.com/photo.jpg\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/register",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ReadUsuarioLogin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"usuario\": \"gustavote\",\r\n    \"password\": \"password123\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/login",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Camiones",
+			"item": [
+				{
+					"name": "ReadCamionContenido",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/camiones/ATLOB24913304_1",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"camiones",
+								"ATLOB24913304_1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ReadCamionesEnEspera",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/camiones/enespera",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"camiones",
+								"enespera"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "UpdateCamionInOut",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/camiones/inout/BAAOB24911846",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"camiones",
+								"inout",
+								"BAAOB24911846"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "UpdateCamionDescargado",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/camiones/descargar/BAAOB24911846",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"camiones",
+								"descargar",
+								"BAAOB24911846"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ReadCamionesEnEspera",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/camiones/list",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"camiones",
+								"list"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Demanda",
+			"item": [
+				{
+					"name": "ReadDemanda",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/demanda/list",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"demanda",
+								"list"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Modelo",
+			"item": [
+				{
+					"name": "ReadModelo",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:5000/modelo",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"modelo"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ReadModeloCustom",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"IDCamiones\": [\r\n        \"ATLOB24934629_1\", \r\n        \"BAAOB24912014\", \r\n        \"ATLOB24934629_2\", \r\n        \"CATL0086861\", \r\n        \"ATLOB24913306_1\", \r\n        \"ATLOB24921619_2\", \r\n        \"ATLOB24921613_2\", \r\n        \"BAAOB24912024\", \r\n        \"BAAOB24927018\", \r\n        \"BAAOB24917249\"\r\n    ]\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/modelo/custom",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"modelo",
+								"custom"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

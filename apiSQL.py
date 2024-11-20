@@ -112,7 +112,7 @@ def get_camion(camion_id):
         product_ids = []
         for truck in trucks:
             for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] is not None and column.isdigit():  # Verifica si es un ID de producto
+                if truck[i] != None and column.isdigit():  # Verifica si es un ID de producto
                     product_ids.append(column)
         
         # Eliminar duplicados de IDs
@@ -135,14 +135,14 @@ def get_camion(camion_id):
         for truck in trucks:
             contenido = {}
             for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] is not 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
+                if truck[i] != 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
                     nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)                
                     truck_data['Contenido'].append({"NombreProducto": nombre_producto,"Cantidad": truck[i]})
         
         return jsonify(truck_data), 200
-
+        
 # /camiones/<camion-id>: Obtener el contenido de un camión por ID (Join tabla camiones y camionesContenido)
-@app.route('/camiones/list', methods=['GET'])
+@app.route('/camiones/enespera', methods=['GET'])
 def get_all_camion():
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -188,7 +188,7 @@ def get_all_camion():
         product_ids = []
         for truck in trucks:
             for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] is not None and column.isdigit():  # Verifica si es un ID de producto
+                if truck[i] != None and column.isdigit():  # Verifica si es un ID de producto
                     product_ids.append(column)
         
         # Eliminar duplicados de IDs
@@ -211,16 +211,17 @@ def get_all_camion():
         for truck in trucks:
             contenido = {}
             for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] is not 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
+                if truck[i] != 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
                     nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)                
                     truck_data['Contenido'].append({"NombreProducto": nombre_producto,"Cantidad": truck[i]})
         
         return jsonify(truck_data), 200
+
 # /camiones: Insertar nuevo set de camiones como csv (insertdb function) DO NOT DO THIS FOR NOW
 #@app.route('/camiones/insert', methods=['DELETE'])
 
-# /patio: Registrar camiones en el patio, entrada por seguridad
-@app.route('/patio/register/<camion_id>', methods=['POST'])
+# /camiones: Registrar camiones en el patio, entrada por seguridad
+@app.route('/camiones/inout/<camion_id>', methods=['PUT'])
 def register_patrol(camion_id):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -249,8 +250,8 @@ def register_patrol(camion_id):
             return jsonify({'message': 'Camión no encontrado'}), 404
 
 
-# /patio: Actualizar el estado de descarga de un camión (descargado)
-@app.route('/patio/update/<camion_id>', methods=['PUT'])
+# /camiones: Actualizar el estado de descarga de un camión (descargado)
+@app.route('/camiones/descargar/<camion_id>', methods=['PUT'])
 # If Estado = Bahia, Estado = Descargado
 # Consulta para actualizar la demanda tras la descarga de productos con la resta del contenido del camión (MIN CAP 0)
 def update_patio(camion_id):
@@ -267,7 +268,7 @@ def update_patio(camion_id):
             WHERE CamionID = ?
         ''', (camion_id,))
         conn.commit()
-        # Actualizar la demanda con la resta de la lista de productos del camion
+        # TODO Actualizar la demanda con la resta de la lista de productos del camion 
         """        cursor.execute('''
             UPDATE demanda 
             SET "124440" = "124440" - 1  -- Example adjustment, adapt as needed
@@ -278,24 +279,7 @@ def update_patio(camion_id):
         """
         return jsonify({'message': 'Camión descargado.'}), 200
     else:
-        return jsonify({'message': 'Camión no está en estado "Bahia".'}), 400
-
-# /patio: Listar camiones (Informacion en tabla camiones)
-@app.route('/patio/list', methods=['GET'])
-def list_trucks_patio():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT CamionID, Placa, Estado, LugarEstacionamiento, HoraLlegada
-            FROM camiones
-            WHERE Estado = 'enEspera'
-        ''')
-        trucks = cursor.fetchall()
-        if trucks:
-            truck_list = [{'CamionID': truck[0], 'Placa': truck[1], 'Estado': truck[2], 'LugarEstacionamiento': truck[3], 'HoraLlegada': truck[4]} for truck in trucks]
-            return jsonify(truck_list), 200
-        else:
-            return jsonify({'message': 'No hay camiones.'}), 404
+        return jsonify({'message': 'Camión no está en estado Bahia.'}), 400
 
 # Read: Ver la demanda (información en tabla de demanda)
 @app.route('/demanda/list', methods=['GET'])
@@ -407,7 +391,7 @@ def modelo():
         return jsonify({'message': f'Error: {str(e)}'}), 500
 
 # Modelo: Correr algoritmo con una lista de IDCamiones
-@app.route('/modelo/ids', methods=['POST'])
+@app.route('/modelo/custom', methods=['POST'])
 def modelo_with_ids():
     try:
         data = request.get_json()
