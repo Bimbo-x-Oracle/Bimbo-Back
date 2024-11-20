@@ -56,6 +56,8 @@ def login():
         else:
             return jsonify({'message': 'Credenciales incorrectas'}), 401
 
+# Obtener 
+
 # Función para generar un lugar de estacionamiento aleatorio
 def generar_lugar_estacionamiento():
     digito = random.randint(1, 9)  # Número de 1 a 9
@@ -64,8 +66,9 @@ def generar_lugar_estacionamiento():
 
 # /camiones: Obtener el contenido de un camión por ID (Join tabla camiones y camionesContenido)
 
-# TODO: REGRESAR CONTENIDO, TODAS LAS COLUMNAS
-  
+# REGRESAR CONTENIDO, TODAS LAS COLUMNAS
+# TODO: cambiar formato {prod},{producto}
+
 @app.route('/camiones/<camion_id>', methods=['GET'])
 def get_camion(camion_id):
     with sqlite3.connect(DB_PATH) as conn:
@@ -85,14 +88,26 @@ def get_camion(camion_id):
         if not trucks:
             return jsonify({'message': 'Camión no encontrado'}), 404
         
+        # Obtener el ID del conductor
+        conductor_id = trucks[0][2]
+        
+        # Tercer consulta: Obtener el nombre completo del conductor
+        cursor.execute('''
+            SELECT NombreCompleto
+            FROM usuarios
+            WHERE UsuarioID = ?
+        ''', (conductor_id,))
+        conductor = cursor.fetchone()
+        if conductor:
+            nombre_conductor = conductor[0]
+        else:
+            nombre_conductor = "Desconocido"  # Manejo de caso donde el conductor no existe
+        
         # Construir datos básicos del camión
         truck_data = {
             'CamionID': trucks[0][0],
             'Placa': trucks[0][1],
-            'ConductorID': trucks[0][2],
-            'NumeroRemolques': trucks[0][3],
-            'HoraLlegada': trucks[0][4],
-            'Estado': trucks[0][5],
+            'NombreConductor': nombre_conductor,
             'Contenido': []
         }
 
@@ -110,7 +125,7 @@ def get_camion(camion_id):
         if product_ids:
             placeholders = ', '.join('?' for _ in product_ids)
             cursor.execute(f'''
-                SELECT ProductoID, Nombre
+                SELECT ProductoID, Nombre, Precio
                 FROM productos
                 WHERE ProductoID IN ({placeholders})
             ''', product_ids)
@@ -124,34 +139,87 @@ def get_camion(camion_id):
             contenido = {}
             for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
                 if truck[i] is not 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
-                    nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)
-                    contenido[nombre_producto] = truck[i]
-            contenido.update({
-                'Carga': truck[6],
-                'FechaCierre': truck[7],
-                'Pallet': truck[8]
-            })
-            truck_data['Contenido'].append(contenido)
+                    nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)                
+                    truck_data['Contenido'].append({"NombreProducto": nombre_producto,"Cantidad": truck[i]})
         
         return jsonify(truck_data), 200
 
-# /camiones: Insertar nuevo set de camiones como csv (insertdb function) DO NOT DO THIS FOR NOW
-#@app.route('/camiones/insert', methods=['DELETE'])
-
-@app.route('/camionesGet/<camion_id>', methods=['GET'])
-def get_all_camiones_contenido(camion_id):
+@app.route('/camiones/list', methods=['GET'])
+def get_all_camion():
     with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Ejecutar el query para obtener todo el contenido de camionesContenido
-        cursor.execute('SELECT * FROM camionesContenido WHERE Carga = ?', (camion_id,))
+        # Primera consulta: Obtener información del camión y camionesContenido
+        cursor.execute('''
+            SELECT c.CamionID, c.Placa, c.ConductorID, c.NumeroRemolques, c.HoraLlegada, c.Estado, cc.*
+            FROM camiones c
+            JOIN camionesContenido cc ON c.CamionID = cc.Carga
+            WHERE c.Estado = "enEspera"
+        ''', ())
         
-        # Obtener todas las filas del resultado
-        contenido_camion = cursor.fetchall()
+        trucks = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
         
-        # Convertir cada fila a diccionario y devolver como JSON
-        return jsonify([dict(row) for row in contenido_camion]), 200
+        if not trucks:
+            return jsonify({'message': 'Camión no encontrado'}), 404
+        
+        # Obtener el ID del conductor
+        conductor_id = trucks[0][2]
+        
+        # Tercer consulta: Obtener el nombre completo del conductor
+        cursor.execute('''
+            SELECT NombreCompleto
+            FROM usuarios
+            WHERE UsuarioID = ?
+        ''', (conductor_id,))
+        conductor = cursor.fetchone()
+        if conductor:
+            nombre_conductor = conductor[0]
+        else:
+            nombre_conductor = "Desconocido"  # Manejo de caso donde el conductor no existe
+        
+        # Construir datos básicos del camión
+        truck_data = {
+            'CamionID': trucks[0][0],
+            'Placa': trucks[0][1],
+            'NombreConductor': nombre_conductor,
+            'Contenido': []
+        }
+
+        # Obtener los IDs de los productos que tienen valores no nulos
+        product_ids = []
+        for truck in trucks:
+            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
+                if truck[i] is not None and column.isdigit():  # Verifica si es un ID de producto
+                    product_ids.append(column)
+        
+        # Eliminar duplicados de IDs
+        product_ids = list(set(product_ids))
+        
+        # Segunda consulta: Obtener nombres de productos
+        if product_ids:
+            placeholders = ', '.join('?' for _ in product_ids)
+            cursor.execute(f'''
+                SELECT ProductoID, Nombre, Precio
+                FROM productos
+                WHERE ProductoID IN ({placeholders})
+            ''', product_ids)
+            
+            product_names = {str(row[0]): row[1] for row in cursor.fetchall()}
+        else:
+            product_names = {}
+
+        # Procesar contenido
+        for truck in trucks:
+            contenido = {}
+            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
+                if truck[i] is not 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
+                    nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)                
+                    truck_data['Contenido'].append({"NombreProducto": nombre_producto,"Cantidad": truck[i]})
+        
+        return jsonify(truck_data), 200
+# /camiones: Insertar nuevo set de camiones como csv (insertdb function) DO NOT DO THIS FOR NOW
+#@app.route('/camiones/insert', methods=['DELETE'])
 
 """
 TODO: Crear
@@ -182,7 +250,7 @@ def register_patrol(camion_id):
                 # Si el camion está saliendo
                 cursor.execute('UPDATE camiones SET Estado = "Out" WHERE CamionID = ?', (camion_id,)) # Cambiar estado a Out
                 conn.commit()
-                return jsonify({'message': f'Camión {camion_id} ya no está en espera, estado actualizado a "Out".'}), 200
+                return jsonify({'message': f'Camión {camion_id} ya no está en espera, estado actualizado a Out.'}), 200
         else:
             return jsonify({'message': 'Camión no encontrado'}), 404
 
