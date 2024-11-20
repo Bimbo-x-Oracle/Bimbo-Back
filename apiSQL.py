@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import datetime
 import pandas as pd
+import os
 from modelo_noAlmacenSQL import algoritmo_genetico_experiment, fetch_data_from_db
 
 app = Flask(__name__)
@@ -120,9 +121,66 @@ def get_all_camiones_contenido(camion_id):
         # Convertir cada fila a diccionario y devolver como JSON
         return jsonify([dict(row) for row in contenido_camion]), 200
 
-"""
-TODO: Crear
-"""
+@app.route('/trucks/insert', methods=['POST'])
+def insert_trucks():
+    try:
+        # Ensure a file is provided in the request
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files['file']
+        
+        # Verify file format
+        if not file.filename.endswith('.csv'):
+            return jsonify({"error": "Only CSV files are allowed"}), 400
+
+        # Save the file temporarily
+        temp_file_path = os.path.join('uploads', file.filename)
+        os.makedirs('uploads', exist_ok=True)
+        file.save(temp_file_path)
+
+        # Load CSV into DataFrame
+        df = pd.read_csv(temp_file_path)
+
+        # Ensure required columns exist
+        required_columns = ["CARGA"]
+        if not all(col in df.columns for col in required_columns):
+            return jsonify({"error": f"Missing required columns. Expected: {required_columns}"}), 400
+
+        # Fetch the list of conductors
+        conductores = get_conductores()
+
+        # Insert trucks into the database
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Generate and insert truck data
+            for _, row in df.iterrows():
+                camion_id = row['CARGA']
+                placa = f"{random.choice(opciones_placas)}-{random.randint(100, 999)}"  # Random license plate
+                conductor_id = random.randint(1, len(conductores))  # Random conductor ID
+                numero_remolques = random.randint(1, 2)  # Random number of trailers
+                hora_llegada = None  # Leave null
+                estado = "EnFabrica"  # Default state
+                lugar_estacionamiento = None  # Leave null
+
+                # Insert query
+                query = '''
+                    INSERT INTO camiones (CamionID, Placa, ConductorID, NumeroRemolques, HoraLlegada, Estado, LugarEstacionamiento)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                '''
+                cursor.execute(query, (camion_id, placa, conductor_id, numero_remolques, hora_llegada, estado, lugar_estacionamiento))
+
+            conn.commit()
+
+        # Remove temporary file
+        os.remove(temp_file_path)
+
+        return jsonify({"message": "Truck data inserted successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # /patio: Registrar camiones en el patio, entrada por seguridad
 @app.route('/patio/register/<camion_id>', methods=['POST'])
@@ -216,11 +274,76 @@ def get_demanda():
             return jsonify({'message': 'No hay demanda disponible.'}), 404
 
 
-# /demanda: Insertar nuevo set de demanda como csv (insert_db function) DO NOT DO THIS FOR NOW
-#@app.route('/demanda/insert', methods=['DELETE'])
-"""
-TODO: CREAR
-"""
+# /demanda: Insertar nuevo set de demanda como csv (insert_db function)
+@app.route('/demanda/insert', methods=['POST'])
+def insert_demanda():
+    try:
+        # Ensure a file is provided in the request
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files['file']
+        
+        # Verify file format
+        if not file.filename.endswith('.csv'):
+            return jsonify({"error": "Only CSV files are allowed"}), 400
+
+        # Save the file temporarily
+        temp_file_path = os.path.join('uploads', file.filename)
+        os.makedirs('uploads', exist_ok=True)
+        file.save(temp_file_path)
+
+        # Process the CSV file
+        df = pd.read_csv(temp_file_path)
+
+        # Ensure required columns exist
+        required_columns = ["Orden", "Articulo", "Cantidad solicitada", "Precio de venta", "orderdtlstatus"]
+        if not all(col in df.columns for col in required_columns):
+            return jsonify({"error": f"Missing required columns. Expected: {required_columns}"}), 400
+
+        # Filter rows where 'orderdtlstatus' == 'Created'
+        df = df[df['orderdtlstatus'] == 'Created']
+        df = df[["Orden", "Articulo", "Cantidad solicitada", "Precio de venta"]]
+
+        # Group by 'Orden' and 'Articulo', then pivot
+        df_grouped = df.groupby(['Orden', 'Articulo'])['Cantidad solicitada'].sum().reset_index()
+        df_pivot = df_grouped.pivot(index='Orden', columns='Articulo', values='Cantidad solicitada').fillna(0)
+        df_pivot.reset_index(inplace=True)
+
+        # Calculate total price per order
+        total_price = df.groupby('Orden')['Precio de venta'].sum().reset_index()
+        total_price = total_price.rename(columns={'Precio de venta': 'PrecioVentaTotal'})
+
+        # Merge total price with pivoted order data
+        df_final = pd.merge(df_pivot, total_price, on='Orden', how='left')
+
+        # Insert into the database
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Prepare insert statement
+            for _, row in df_final.iterrows():
+                # Prepare columns for pivoted items
+                item_columns = ', '.join([f'"{str(col)}"' for col in df_pivot.columns if col != 'Orden'])
+                item_values = ', '.join([str(row[col]) if col in row else '0' for col in df_pivot.columns if col != 'Orden'])
+
+                # Insert query
+                query = f'''
+                    INSERT INTO demanda (Orden, {item_columns}, PrecioVentaTotal)
+                    VALUES (?, {item_values}, ?)
+                '''
+                cursor.execute(query, (row['Orden'], row['PrecioVentaTotal']))
+
+            conn.commit()
+
+        # Remove temporary file
+        os.remove(temp_file_path)
+
+        return jsonify({"message": "Data inserted successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 #Métodos de modelo (con referencia a modelo_noAlmacenSQL.py)
 
@@ -246,12 +369,41 @@ def modelo():
     except Exception as e:
         return jsonify({'message': f'Error: {str(e)}'}), 500
 
+# Modelo: Correr algoritmo con una lista de IDCamiones
+@app.route('/modelo/ids', methods=['POST'])
+def modelo_with_ids():
+    try:
+        data = request.get_json()
 
-## Modelo: Algoritmo a correr con csvs predeterminados para casos de prueba DO NOT DO THIS FOR NOW
-#@app.route('/modelo/test', methods=['POST'])
-"""
-TODO: Crear
-"""
+        if not data or 'IDCamiones' not in data:
+            return jsonify({'message': 'Invalid input. Provide a list of IDCamiones.'}), 400
+
+        id_camiones = data['IDCamiones']
+
+        # Fetch camiones and demanda data
+        camiones_df, demanda_df = fetch_data_from_db()
+
+        if camiones_df.empty or demanda_df.empty:
+            return jsonify({'message': 'No data found for trucks or demand.'}), 400
+
+        # Filter camiones_df to only include rows matching the provided IDs
+        camiones_df = camiones_df[camiones_df['Carga'].isin(id_camiones)]
+
+        if camiones_df.empty:
+            return jsonify({'message': 'No matching trucks found for provided IDs.'}), 404
+
+        # Run the genetic algorithm with the filtered data
+        mejor_individuo, tiempo_total_ganador = algoritmo_genetico_experiment(camiones_df, demanda_df)
+
+        result = {
+            'mejor_individuo': mejor_individuo,  # List of trucks assigned to each bay
+            'tiempo_total_ganador': tiempo_total_ganador  # Total time for the best solution
+        }
+        
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'message': f'Error: {str(e)}'}), 500
 
 # Punto de entrada
 if __name__ == '__main__':
