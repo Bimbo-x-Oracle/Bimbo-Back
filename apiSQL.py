@@ -49,15 +49,14 @@ def login():
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT Password FROM usuarios WHERE Usuario = ?', (usuario,))
+        cursor.execute('SELECT Password, Rol FROM usuarios WHERE Usuario = ?', (usuario,))
         row = cursor.fetchone()
 
         if row and check_password_hash(row[0], password):
-            return jsonify({'message': 'Login exitoso'}), 200
+            return jsonify({'message': 'Login exitoso', 'Rol': row[1]}), 200
         else:
             return jsonify({'message': 'Credenciales incorrectas'}), 401
 
-# Obtener 
 
 # Función para generar un lugar de estacionamiento aleatorio
 def generar_lugar_estacionamiento():
@@ -286,13 +285,48 @@ def update_patio(camion_id):
 def get_demanda():
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
+
+        # Primera consulta: obtener todos los datos de demanda
         cursor.execute('SELECT * FROM demanda')
         demanda_data = cursor.fetchall()
-        if demanda_data:
-            demand_list = [dict(zip([column[0] for column in cursor.description], row)) for row in demanda_data]
-            return jsonify(demand_list), 200
-        else:
+        columns = [col[0] for col in cursor.description]  # Nombres de las columnas
+
+        if not demanda_data:
             return jsonify({'message': 'No hay demanda disponible.'}), 404
+
+        # Identificar columnas que son IDs de productos (números)
+        product_ids = [col for col in columns if col.isdigit()]
+
+        # Filtrar productos con cantidades mayores a 0
+        demanda_filtrada = []
+        for row in demanda_data:
+            for product_id in product_ids:
+                idx = columns.index(product_id)
+                cantidad = row[idx]
+                if cantidad and cantidad > 0:  # Si hay demanda para este producto
+                    demanda_filtrada.append((product_id, cantidad))
+
+        if not demanda_filtrada:
+            return jsonify({'message': 'No hay productos con demanda disponible.'}), 404
+
+        # Segunda consulta: obtener nombres de los productos
+        product_ids = [item[0] for item in demanda_filtrada]
+        placeholders = ', '.join('?' for _ in product_ids)
+        query = f"""
+            SELECT ProductoID, Nombre
+            FROM productos
+            WHERE ProductoID IN ({placeholders})
+        """
+        cursor.execute(query, product_ids)
+        product_names = {str(row[0]): row[1] for row in cursor.fetchall()}
+
+        # Construir la lista de demanda
+        demand_list = [
+            {"NombreProducto": product_names.get(product_id, "Producto desconocido"), "Cantidad": cantidad}
+            for product_id, cantidad in demanda_filtrada
+        ]
+
+        return jsonify({"Demanda": demand_list}), 200
 
 
 # /demanda: Insertar nuevo set de demanda como csv (insert_db function)
