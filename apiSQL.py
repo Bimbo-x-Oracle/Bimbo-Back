@@ -12,7 +12,7 @@ from modelo_noAlmacenSQL import algoritmo_genetico_experiment, fetch_data_from_d
 app = Flask(__name__)
 
 # Path a base de datos SQLite
-DB_PATH = './data/database.db.'
+DB_PATH = './data/database.db'
 
 # Registro de usuario
 @app.route('/register', methods=['POST'])
