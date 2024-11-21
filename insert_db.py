@@ -7,19 +7,19 @@ import random
 ## Lista de nombres de choferes y URLs para fotos
 nombres = ["Rubí", "Raúl", "Rafael", "Sebastián", "Gustavo", "Gus", "Daniel", "Pablo", "Daniela", "Humberto", "Mariluz", "Alejandro", "Emiliano"]
 fotos = [
-    "https://example.com/foto_rubi.png",
-    "https://example.com/foto_raul.png",
-    "https://example.com/foto_rafael.png",
-    "https://example.com/foto_sebastian.png",
-    "https://example.com/foto_gustavo.png",
-    "https://example.com/foto_gus.png",
-    "https://example.com/foto_daniel.png",
-    "https://example.com/foto_pablo.png",
-    "https://example.com/foto_daniela.png",
-    "https://example.com/foto_humberto.png",
-    "https://example.com/foto_mariluz.png",
-    "https://example.com/foto_alejandro.png",
-    "https://example.com/foto_emiliano.png"
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa1.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa2.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa3.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa4.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa5.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa6.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa7.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa8.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa9.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa10.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa11.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa12.jpg",
+    "https://panquimetro.s3.us-east-1.amazonaws.com/wa13.jpg"
 ]
 
 # Database path
