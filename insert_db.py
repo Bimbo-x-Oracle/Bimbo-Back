@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime
 import os
 import random
+from werkzeug.security import generate_password_hash, check_password_hash
 
 ## Lista de nombres de choferes y URLs para fotos
 nombres = ["Rubí", "Raúl", "Rafael", "Sebastián", "Gustavo", "Gus", "Daniel", "Pablo", "Daniela", "Humberto", "Mariluz", "Alejandro", "Emiliano"]
@@ -258,13 +259,16 @@ def process_and_insert_users():
             nombre_completo = nombres[user_id - 1]  # Pick name from list
             rol = random.choice(["Conductor", "Supervisor", "Descargador", "Seguridad"])  # Random role
             foto = fotos[user_id - 1]  # Pick photo from the list
+
+            # Hash the password wiht salt using PBKDF2 and SHA256
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
             
             # Insert into usuarios table
             query = '''
                 INSERT INTO usuarios (UsuarioID, Usuario, Password, NombreCompleto, Rol, Foto)
                 VALUES (?, ?, ?, ?, ?, ?)
             '''
-            cursor.execute(query, (user_id, usuario, password, nombre_completo, rol, foto))
+            cursor.execute(query, (user_id, usuario, hashed_password, nombre_completo, rol, foto))
         
         conn.commit()
     print("Users data inserted successfully into usuarios table.")
