@@ -2,6 +2,7 @@ import csv
 import random
 import json
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import datetime
@@ -10,6 +11,7 @@ import os
 from modelo_noAlmacenSQL import algoritmo_genetico_experiment, fetch_data_from_db
 
 app = Flask(__name__)
+CORS(app)  # This will enable CORS for all routes
 
 # Path a base de datos SQLite
 DB_PATH = './data/database.db'
@@ -49,11 +51,11 @@ def login():
 
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT Password, Rol FROM usuarios WHERE Usuario = ?', (usuario,))
+        cursor.execute('SELECT NombreCompleto, Password, Rol, Foto FROM usuarios WHERE Usuario = ?', (usuario,))
         row = cursor.fetchone()
 
-        if row and check_password_hash(row[0], password):
-            return jsonify({'message': 'Login exitoso', 'Rol': row[1]}), 200
+        if row and check_password_hash(row[1], password):
+            return jsonify({'message': 'Login exitoso', 'NombreCompleto': row[0], 'Rol': row[2], 'Foto': row[3]}), 200
         else:
             return jsonify({'message': 'Credenciales incorrectas'}), 401
 
