@@ -150,18 +150,56 @@ def get_conductores():
         conductores = [row[0] for row in cursor.fetchall()]
     return conductores
 
+# def process_and_insert_trucks():
+#     """
+#     # CamionID: should be an item from pending_camiones_cleanformat.csv CARGA column
+#     # Placa: randomly generate license plate
+#     # ConductorID: count+1 
+#     # NumeroRemolques: random1-2
+#     # HoraLlegada: leave at null for now, value changes in app
+#     # Estado: leave at "EnFabrica", value changes in app
+#     # LugarEstacionamiento: leave at null for now, value changes in app
+#     """
+#     # Obtener la lista de conductores
+#     conductores = get_conductores()
+
+#     # Insert data into the database for camiones table
+#     with sqlite3.connect(DB_PATH) as conn:
+#         cursor = conn.cursor()
+        
+#         # Get a list of CARGA values from pending data
+#         cursor.execute("SELECT DISTINCT Carga FROM camionesContenido")
+#         camiones_data = cursor.fetchall()
+        
+#         # Generate trucks data
+#         for camion in camiones_data:
+#             camion_id = camion[0]
+#             placa = f"{random.choice(opciones_placas)}-{random.randint(100, 999)}"  # Random license plate
+#             conductor_id = random.randint(1, len(conductores))  # Random conductor ID (assuming users are in a list)
+#             numero_remolques = random.randint(1, 2)  # Random number of trailers (1 or 2)
+#             hora_llegada = None  # Leaving it null for now
+#             estado = "EnFabrica"
+#             lugar_estacionamiento = None  # Leaving it null for now
+            
+#             # Insert into camiones table
+#             query = '''
+#                 INSERT INTO camiones (CamionID, Placa, ConductorID, NumeroRemolques, HoraLlegada, Estado, LugarEstacionamiento)
+#                 VALUES (?, ?, ?, ?, ?, ?, ?)
+#             '''
+#             cursor.execute(query, (camion_id, placa, conductor_id, numero_remolques, hora_llegada, estado, lugar_estacionamiento))
+        
+#         conn.commit()
+#     print("Trucks data inserted successfully into camiones table.")
+
 def process_and_insert_trucks():
     """
-    # CamionID: should be an item from pending_camiones_cleanformat.csv CARGA column
-    # Placa: randomly generate license plate
-    # ConductorID: count+1 
-    # NumeroRemolques: random1-2
-    # HoraLlegada: leave at null for now, value changes in app
-    # Estado: leave at "EnFabrica", value changes in app
-    # LugarEstacionamiento: leave at null for now, value changes in app
+    Inserta camiones en la tabla camiones, asignando "EnEspera" a los primeros 20.
     """
     # Obtener la lista de conductores
     conductores = get_conductores()
+
+    # Contador para determinar el estado de los camiones
+    contador_camiones = 0
 
     # Insert data into the database for camiones table
     with sqlite3.connect(DB_PATH) as conn:
@@ -177,8 +215,15 @@ def process_and_insert_trucks():
             placa = f"{random.choice(opciones_placas)}-{random.randint(100, 999)}"  # Random license plate
             conductor_id = random.randint(1, len(conductores))  # Random conductor ID (assuming users are in a list)
             numero_remolques = random.randint(1, 2)  # Random number of trailers (1 or 2)
-            hora_llegada = None  # Leaving it null for now
-            estado = "EnFabrica"
+            
+            # Determinar estado
+            if contador_camiones < 20:
+                estado = "enEspera"
+                hora_llegada = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Asignar hora de llegada
+            else:
+                estado = "enFabrica"
+                hora_llegada = None  # Leaving it null for now
+                
             lugar_estacionamiento = None  # Leaving it null for now
             
             # Insert into camiones table
@@ -187,6 +232,9 @@ def process_and_insert_trucks():
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             '''
             cursor.execute(query, (camion_id, placa, conductor_id, numero_remolques, hora_llegada, estado, lugar_estacionamiento))
+            
+            # Incrementar contador
+            contador_camiones += 1
         
         conn.commit()
     print("Trucks data inserted successfully into camiones table.")

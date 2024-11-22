@@ -70,7 +70,7 @@ def get_camion(camion_id):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         
-        # Primera consulta: Obtener información del camión y camionesContenido
+        # Consulta para obtener información del camión y contenido
         cursor.execute('''
             SELECT c.CamionID, c.Placa, c.ConductorID, c.NumeroRemolques, c.HoraLlegada, c.Estado, cc.*
             FROM camiones c
@@ -87,37 +87,35 @@ def get_camion(camion_id):
         # Obtener el ID del conductor
         conductor_id = trucks[0][2]
         
-        # Tercer consulta: Obtener el nombre completo del conductor
+        # Consulta para obtener el nombre del conductor
         cursor.execute('''
-            SELECT NombreCompleto
+            SELECT NombreCompleto, Foto
             FROM usuarios
             WHERE UsuarioID = ?
         ''', (conductor_id,))
         conductor = cursor.fetchone()
-        if conductor:
-            nombre_conductor = conductor[0]
-        else:
-            nombre_conductor = "Desconocido"  # Manejo de caso donde el conductor no existe
+        nombre_conductor = conductor[0] if conductor else "Desconocido"
+        foto_usuario = conductor[1] if conductor else "Sin Imagen"
         
-        # Construir datos básicos del camión
+        # Construcción de los datos del camión
         truck_data = {
             'CamionID': trucks[0][0],
             'Placa': trucks[0][1],
             'NombreConductor': nombre_conductor,
+            'Foto' : foto_usuario,
             'Contenido': []
         }
 
-        # Obtener los IDs de los productos que tienen valores no nulos
+        # Obtener los IDs únicos de productos
         product_ids = []
         for truck in trucks:
-            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] != None and column.isdigit():  # Verifica si es un ID de producto
+            for i, column in enumerate(columns[6:], start=6):
+                if truck[i] != None and column.isdigit():
                     product_ids.append(column)
         
-        # Eliminar duplicados de IDs
-        product_ids = list(set(product_ids))
+        product_ids = list(set(product_ids))  # Eliminar duplicados
         
-        # Segunda consulta: Obtener nombres de productos
+        # Consulta para obtener nombres de productos
         if product_ids:
             placeholders = ', '.join('?' for _ in product_ids)
             cursor.execute(f'''
@@ -125,75 +123,50 @@ def get_camion(camion_id):
                 FROM productos
                 WHERE ProductoID IN ({placeholders})
             ''', product_ids)
-            
             product_names = {str(row[0]): row[1] for row in cursor.fetchall()}
         else:
             product_names = {}
 
-        # Procesar contenido
+        # Procesar contenido y evitar duplicados
         for truck in trucks:
-            contenido = {}
-            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] != 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
-                    nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)                
-                    truck_data['Contenido'].append({"NombreProducto": nombre_producto,"Cantidad": truck[i]})
+            for i, column in enumerate(columns[6:], start=6):
+                if truck[i] != 0 and column.isdigit():
+                    nombre_producto = product_names.get(column, column)
+                    if not any(item['NombreProducto'] == nombre_producto for item in truck_data['Contenido']):
+                        truck_data['Contenido'].append({"NombreProducto": nombre_producto, "Cantidad": truck[i]})
         
         return jsonify(truck_data), 200
         
-# /camiones/<camion-id>: Obtener el contenido de un camión por ID (Join tabla camiones y camionesContenido)
+# /camiones/: Obtener una lista de camiones enEspera con su contenido
 @app.route('/camiones/enespera', methods=['GET'])
 def get_all_camion():
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         
-        # Primera consulta: Obtener información del camión y camionesContenido
+        # Consulta para obtener camiones en espera y su contenido
         cursor.execute('''
             SELECT c.CamionID, c.Placa, c.ConductorID, c.NumeroRemolques, c.HoraLlegada, c.Estado, cc.*
             FROM camiones c
             JOIN camionesContenido cc ON c.CamionID = cc.Carga
             WHERE c.Estado = "enEspera"
-        ''', ())
+        ''')
         
         trucks = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
         
         if not trucks:
-            return jsonify({'message': 'Camión no encontrado'}), 404
-        
-        # Obtener el ID del conductor
-        conductor_id = trucks[0][2]
-        
-        # Tercer consulta: Obtener el nombre completo del conductor
-        cursor.execute('''
-            SELECT NombreCompleto
-            FROM usuarios
-            WHERE UsuarioID = ?
-        ''', (conductor_id,))
-        conductor = cursor.fetchone()
-        if conductor:
-            nombre_conductor = conductor[0]
-        else:
-            nombre_conductor = "Desconocido"  # Manejo de caso donde el conductor no existe
-        
-        # Construir datos básicos del camión
-        truck_data = {
-            'CamionID': trucks[0][0],
-            'Placa': trucks[0][1],
-            'NombreConductor': nombre_conductor,
-            'Contenido': []
-        }
+            return jsonify({'message': 'No hay camiones en espera'}), 404
 
-        # Obtener los IDs de los productos que tienen valores no nulos
+        # Obtener los IDs únicos de productos
         product_ids = []
         for truck in trucks:
-            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] != None and column.isdigit():  # Verifica si es un ID de producto
+            for i, column in enumerate(columns[6:], start=6):
+                if truck[i] != None and column.isdigit():
                     product_ids.append(column)
         
-        # Eliminar duplicados de IDs
-        product_ids = list(set(product_ids))
+        product_ids = list(set(product_ids))  # Eliminar duplicados
         
-        # Segunda consulta: Obtener nombres de productos
+        # Consulta para obtener nombres de productos
         if product_ids:
             placeholders = ', '.join('?' for _ in product_ids)
             cursor.execute(f'''
@@ -201,20 +174,50 @@ def get_all_camion():
                 FROM productos
                 WHERE ProductoID IN ({placeholders})
             ''', product_ids)
-            
             product_names = {str(row[0]): row[1] for row in cursor.fetchall()}
         else:
             product_names = {}
 
-        # Procesar contenido
+        # Procesar cada camión por separado
+        camiones_en_espera = {}
         for truck in trucks:
-            contenido = {}
-            for i, column in enumerate(columns[6:], start=6):  # Ignorar las primeras columnas (camiones)
-                if truck[i] != 0 and column.isdigit():  # Si es un producto (Se ignoran productos sin cantidad)
-                    nombre_producto = product_names.get(column, column)  # Usa el nombre (se usa ID si no está en productos)                
-                    truck_data['Contenido'].append({"NombreProducto": nombre_producto,"Cantidad": truck[i]})
-        
-        return jsonify(truck_data), 200
+            camion_id = truck[0]
+            placa = truck[1]
+            conductor_id = truck[2]
+            
+            # Obtener nombre del conductor (si no está en caché)
+            if camion_id not in camiones_en_espera:
+                cursor.execute('''
+                    SELECT NombreCompleto
+                    FROM usuarios
+                    WHERE UsuarioID = ?
+                ''', (conductor_id,))
+                conductor = cursor.fetchone()
+                nombre_conductor = conductor[0] if conductor else "Desconocido"
+                
+                # Inicializar datos del camión
+                camiones_en_espera[camion_id] = {
+                    'CamionID': camion_id,
+                    'Placa': placa,
+                    'NombreConductor': nombre_conductor,
+                    'Contenido': []
+                }
+            
+            # Agregar contenido al camión actual
+            for i, column in enumerate(columns[6:], start=6):
+                if truck[i] != 0 and column.isdigit():
+                    nombre_producto = product_names.get(column, column)
+                    contenido = camiones_en_espera[camion_id]['Contenido']
+                    
+                    # Verificar si ya existe el producto, acumular cantidades si es necesario
+                    producto_existente = next((p for p in contenido if p['NombreProducto'] == nombre_producto), None)
+                    if producto_existente:
+                        producto_existente['Cantidad'] += truck[i]
+                    else:
+                        contenido.append({"NombreProducto": nombre_producto, "Cantidad": truck[i]})
+
+        # Convertir los datos a lista para el JSON final
+        return jsonify(list(camiones_en_espera.values())), 200
 
 # /camiones: Insertar nuevo set de camiones como csv (insertdb function) DO NOT DO THIS FOR NOW
 #@app.route('/camiones/insert', methods=['DELETE'])
