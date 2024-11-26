@@ -477,22 +477,22 @@ def modelo_with_ids():
 # GET: Obtener "listaInicial"
 @app.route('/listaInicial', methods=['GET'])
 def get_lista_inicial():
-    return jsonify({listaInicial}), 200
+    return jsonify(listaInicial), 200
 
 # GET: Obtener "nuevasFosas"
 @app.route('/nuevasFosas', methods=['GET'])
 def get_nuevas_fosas():
-    return jsonify({nuevasFosas}), 200
+    return jsonify(nuevasFosas), 200
 
 # GET: Obtener "inicializado"
 @app.route('/inicializado', methods=['GET'])
 def get_inicializado():
-    return jsonify({inicializado}), 200
+    return jsonify(inicializado), 200
 
 # GET: Obtener "listaFueraFosas"
 @app.route('/listaFueraFosas', methods=['GET'])
 def get_lista_fuera_fosas():
-    return jsonify({listaFueraFosas}), 200
+    return jsonify(listaFueraFosas), 200
 
 # Ultima esperanza: Post de variables global
 # POST: Modificar "listaInicial"
