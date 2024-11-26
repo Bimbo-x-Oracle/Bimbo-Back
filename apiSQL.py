@@ -17,7 +17,7 @@ CORS(app)  # This will enable CORS for all routes
 listaInicial = []
 nuevasFosas = []
 inicializado = False
-listaNuevasFosas = []
+listaFueraFosas = []
 
 # Path a base de datos SQLite
 DB_PATH = './data/database.db'
@@ -489,10 +489,11 @@ def get_nuevas_fosas():
 def get_inicializado():
     return jsonify({"inicializado": inicializado}), 200
 
-# GET: Obtener "listaNuevasFosas"
-@app.route('/listaNuevasFosas', methods=['GET'])
-def get_lista_nuevas_fosas():
-    return jsonify({"listaNuevasFosas": listaNuevasFosas}), 200
+# GET: Obtener "listaFueraFosas"
+@app.route('/listaFueraFosas', methods=['GET'])
+def get_lista_fuera_fosas():
+    return jsonify({"listaFueraFosas": listaFueraFosas}), 200
+
 # Ultima esperanza: Post de variables global
 # POST: Modificar "listaInicial"
 @app.route('/listaInicial', methods=['POST'])
@@ -524,15 +525,15 @@ def update_inicializado():
     inicializado = new_data
     return jsonify({"message": "'inicializado' actualizado", "inicializado": inicializado}), 200
 
-# POST: Modificar "listaNuevasFosas"
-@app.route('/listaNuevasFosas', methods=['POST'])
-def update_lista_nuevas_fosas():
-    global listaNuevasFosas
-    new_data = request.json.get("listaNuevasFosas")
+# POST: Modificar "listaFueraFosas"
+@app.route('/listaFueraFosas', methods=['POST'])
+def update_lista_fuera_fosas():
+    global listaFueraFosas
+    new_data = request.json.get("listaFueraFosas")
     if not isinstance(new_data, list):
-        return jsonify({"error": "'listaNuevasFosas' debe ser un array de objetos"}), 400
-    listaNuevasFosas = new_data
-    return jsonify({"message": "'listaNuevasFosas' actualizada", "listaNuevasFosas": listaNuevasFosas}), 200
+        return jsonify({"error": "'listaFueraFosas' debe ser un array de objetos"}), 400
+    listaFueraFosas = new_data
+    return jsonify({"message": "'listaFueraFosas' actualizada", "listaFueraFosas": listaFueraFosas}), 200
 
 # Punto de entrada
 if __name__ == '__main__':
