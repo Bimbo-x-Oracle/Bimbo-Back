@@ -477,62 +477,74 @@ def modelo_with_ids():
 # GET: Obtener "listaInicial"
 @app.route('/listaInicial', methods=['GET'])
 def get_lista_inicial():
-    return jsonify({"listaInicial": listaInicial}), 200
+    return jsonify({listaInicial}), 200
 
 # GET: Obtener "nuevasFosas"
 @app.route('/nuevasFosas', methods=['GET'])
 def get_nuevas_fosas():
-    return jsonify({"nuevasFosas": nuevasFosas}), 200
+    return jsonify({nuevasFosas}), 200
 
 # GET: Obtener "inicializado"
 @app.route('/inicializado', methods=['GET'])
 def get_inicializado():
-    return jsonify({"inicializado": inicializado}), 200
+    return jsonify({inicializado}), 200
 
 # GET: Obtener "listaFueraFosas"
 @app.route('/listaFueraFosas', methods=['GET'])
 def get_lista_fuera_fosas():
-    return jsonify({"listaFueraFosas": listaFueraFosas}), 200
+    return jsonify({listaFueraFosas}), 200
 
 # Ultima esperanza: Post de variables global
 # POST: Modificar "listaInicial"
 @app.route('/listaInicial', methods=['POST'])
 def update_lista_inicial():
     global listaInicial
-    new_data = request.json.get("listaInicial")
-    if not isinstance(new_data, list):
+
+    # Validar que el cuerpo sea un JSON Array
+    if not isinstance(request.json, list):
         return jsonify({"error": "'listaInicial' debe ser un array de objetos"}), 400
-    listaInicial = new_data
+
+    # Actualizar la variable global
+    listaInicial = request.json
     return jsonify({"message": "'listaInicial' actualizada", "listaInicial": listaInicial}), 200
 
 # POST: Modificar "nuevasFosas"
 @app.route('/nuevasFosas', methods=['POST'])
 def update_nuevas_fosas():
     global nuevasFosas
-    new_data = request.json.get("nuevasFosas")
-    if not isinstance(new_data, list) or not all(isinstance(i, str) for i in new_data):
+
+    # Validar que el cuerpo sea un JSON Array y todos los elementos sean strings
+    if not isinstance(request.json, list) or not all(isinstance(i, str) for i in request.json):
         return jsonify({"error": "'nuevasFosas' debe ser un array de strings"}), 400
-    nuevasFosas = new_data
+
+    # Actualizar la variable global
+    nuevasFosas = request.json
     return jsonify({"message": "'nuevasFosas' actualizada", "nuevasFosas": nuevasFosas}), 200
 
 # POST: Modificar "inicializado"
 @app.route('/inicializado', methods=['POST'])
 def update_inicializado():
     global inicializado
-    new_data = request.json.get("inicializado")
-    if not isinstance(new_data, bool):
+
+    # Validar que el cuerpo sea un booleano (no un array)
+    if not isinstance(request.json, bool):
         return jsonify({"error": "'inicializado' debe ser un booleano"}), 400
-    inicializado = new_data
+
+    # Actualizar la variable global
+    inicializado = request.json
     return jsonify({"message": "'inicializado' actualizado", "inicializado": inicializado}), 200
 
 # POST: Modificar "listaFueraFosas"
 @app.route('/listaFueraFosas', methods=['POST'])
 def update_lista_fuera_fosas():
     global listaFueraFosas
-    new_data = request.json.get("listaFueraFosas")
-    if not isinstance(new_data, list):
+
+    # Validar que el cuerpo sea un JSON Array y todos los elementos sean objetos
+    if not isinstance(request.json, list) or not all(isinstance(item, dict) for item in request.json):
         return jsonify({"error": "'listaFueraFosas' debe ser un array de objetos"}), 400
-    listaFueraFosas = new_data
+
+    # Actualizar la variable global
+    listaFueraFosas = request.json
     return jsonify({"message": "'listaFueraFosas' actualizada", "listaFueraFosas": listaFueraFosas}), 200
 
 # Punto de entrada
