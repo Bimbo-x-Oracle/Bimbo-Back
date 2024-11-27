@@ -18,6 +18,7 @@ listaInicial = []
 nuevasFosas = []
 inicializado = False
 listaFueraFosas = []
+agregados = 0
 
 # Path a base de datos SQLite
 DB_PATH = './data/database.db'
@@ -494,6 +495,11 @@ def get_inicializado():
 def get_lista_fuera_fosas():
     return jsonify(listaFueraFosas), 200
 
+# GET: Obtener "agregados"
+@app.route('/agregados', methods=['GET'])
+def get_agregados():
+    return jsonify(agregados), 200
+
 # Ultima esperanza: Posts de variables global
 # POST: Modificar "listaInicial"
 @app.route('/listaInicial', methods=['POST'])
@@ -554,6 +560,22 @@ def update_lista_fuera_fosas():
     # Actualizar la variable global
     listaFueraFosas = data
     return jsonify({"message": "'listaFueraFosas' actualizada", "listaFueraFosas": listaFueraFosas}), 200
+
+# POST: Modificar "agregados"
+@app.route('/agregados', methods=['POST'])
+def update_agregados():
+    global agregados
+
+    # Obtener los datos del cuerpo usando get_json
+    data = request.get_json()
+
+    # Validar que el cuerpo sea un número entero
+    if not isinstance(data, int):
+        return jsonify({"error": "'agregados' debe ser un número entero"}), 400
+
+    # Actualizar la variable global
+    agregados = data
+    return jsonify({"message": "'agregados' actualizado", "agregados": agregados}), 200
 
 
 # Punto de entrada
